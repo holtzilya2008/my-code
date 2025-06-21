@@ -28,8 +28,8 @@ This is a place where a community of **Humans** solve coding challenges **Withou
     - 1 Web development challenge
 
 - The challenges will be placed in the following directory structure:
-    - `topics/<topic>/challenges/<YYYY-MM>_<challenge_name>`
-    e.g. `topics/algorithms/challenges/2025-07_Longest_Substring_Without_Repeating`
+    - `topics/<topic>/<YYYY-MM>_<challenge_name>`
+    e.g. `topics/algorithms/2025-07_Longest_Substring_Without_Repeating`
 - The members must submit a pull request with a solution, that follows submission rules bellow.
 - The earlier you submit the solution, the higher chances it will be reviewed by someone from the members.
 - Everyone can review and comment on any Pull request.
@@ -40,8 +40,8 @@ This is a place where a community of **Humans** solve coding challenges **Withou
 ## Solution Submission Rules
 
 - You should develop your solution in a separate branch and submit under 
-    - `topics/<topic>/challenges/<YYYY-MM>_<challenge_name>/solutions/<your_github_username>/`
-    e.g. `topics/algorithms/challenges/2025-07_Longest_Substring_Without_Repeating/solutions/holtzilya2008/`
+    - `topics/<topic>/<YYYY-MM>_<challenge_name>/solutions/<your_github_username>/`
+    e.g. `topics/algorithms/2025-07_Longest_Substring_Without_Repeating/solutions/holtzilya2008/`
 - You submit your solution using a Pull Request to the master branch
 - Your solution should include a Dockerfile and `docker-compose.yml`. Everyone who wishes to run your solution should be able to do `docker compose up` and it should run your docker container with all the dependencies, run your tests and then shut down your container once all tests passed.
 
