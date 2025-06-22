@@ -11,7 +11,7 @@ If you are reading this it means you are interested in proposing a new challenge
 
     - Inside the challenge directory:
         - `README.md` file that includes the challenge description. See for example: 
-        `challenges/20241224_Longest_Substring_Without_Repeating/README.md`
+        `topics/algorithms/20241224_Longest_Substring_Without_Repeating/README.md`
 
         - Prepare the `solutions` directory with `.gitkeep` file so it would be included by git.
         e.g. `topics/algorithms/2025-07_Longest_Substring_Without_Repeating/solutions/.gitkeep`

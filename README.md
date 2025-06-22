@@ -51,6 +51,6 @@ This is a place where a community of **Humans** solve coding challenges **Withou
 - There are no limitations on the language or technology you use here, as long as it runs in a  docker container.
 - Your solution MUST include unit tests in the `tests` directory, along with your solution code. 
 - Try to make the tests and the code verbose (add prints and logging), so the person running your solution could actually observe what's happening
+- Make a separate Pull Request for every challenge you solve. You don't have to solve all of them. Pick what you find most relevant for you. 
 - Try to follow best coding practices for the technology you are using. 
 - For Architecture only challenges, you should provide a design document using the documentation as code approach, such as Markdown files, and include them in your solution directory. You can use GenAI to help you to draw PlantUML or SVG diagrams. 
-
