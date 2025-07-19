@@ -1,0 +1,13 @@
+
+version: '3.8'
+
+services:
+  test:
+    image: eclipse-temurin:21-jdk
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: >
+      sh -c "javac Solution.java &&
+             javac -cp .:junit-platform-console-standalone-1.9.3.jar SolutionTest.java &&
+             java -jar junit-platform-console-standalone-1.9.3.jar --class-path . --scan-class-path"
