@@ -16,13 +16,14 @@ def find_longest_substring(input: str) -> int:
         next_char = input[window_end]
         
         if next_char in window_chars_to_index:
-            # Starting a new substring
-            previous_window_start = window_start
+            # Starting a new substring, Moving the window start point
             window_start = window_chars_to_index[next_char] + 1
-            
-            # Remove all unnecessary window eleemnts from the dict
-            for i in range(previous_window_start, window_start): 
-                window_chars_to_index.pop(input[i])
+
+            # Initialize a new window 
+            # The length of this operation will be the longest substring so far.
+            window_chars_to_index = {}
+            for i in range(window_start, window_end): 
+                window_chars_to_index[input[i]] = i
             
         # Add "next_char" to the window chars
         window_chars_to_index[next_char] = window_end
