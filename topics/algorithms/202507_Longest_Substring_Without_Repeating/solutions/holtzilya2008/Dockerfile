@@ -10,4 +10,5 @@ RUN pip3 install -r requirements.txt
 
 ENTRYPOINT ["pytest"]
 
-CMD ["-v"]
+# Arguments for the Entrypoint
+CMD ["-v", "-s"]

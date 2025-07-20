@@ -15,3 +15,4 @@ from python_solution import find_longest_substring
 def test_solution(input: str, expected_result: int):
     actual_result = find_longest_substring(input)
     assert actual_result == expected_result
+
