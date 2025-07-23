@@ -1,0 +1,5 @@
+services:
+  solution:
+    restart: no
+    build:
+      context: .
