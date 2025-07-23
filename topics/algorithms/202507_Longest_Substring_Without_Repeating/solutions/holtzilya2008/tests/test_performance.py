@@ -1,7 +1,7 @@
 import time
-from python_solution import find_longest_substring
+from python_solution import find_longest_substring_length
 
-
+EXPECTED_LENGTH = 36
 PREFIX_LENGTH = 1_000_000
 
 
@@ -17,8 +17,8 @@ LONG_INPUT = build_long_input()
 
 def test_performance():
     start_time = time.perf_counter()
-    result = find_longest_substring(LONG_INPUT)
-    assert result == 36
+    result = find_longest_substring_length(LONG_INPUT)
+    assert result == EXPECTED_LENGTH
     end_time = time.perf_counter()
     duration = (end_time - start_time) * 1000 # Milliseconds
     print('Performance test:')
