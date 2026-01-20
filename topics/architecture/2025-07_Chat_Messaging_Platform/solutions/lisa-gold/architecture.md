@@ -63,7 +63,7 @@ This document defines the architecture of a WhatsApp-like messaging platform, in
 4. If combination of phone number and password is correct, user is redirected to a home screen with his/her chats
 
 ### Use-case 3. Direct messaging
-1. User chooses another platform user to chat with
+1. Logged-in user chooses another platform user to chat with
 2. Their chat history opens if exists
 3. User has an input section on the bottom of the chat window. Input consists of text input, file attachment option and button `send`
 4. User prints some text, attach files and sends the message
@@ -71,14 +71,36 @@ This document defines the architecture of a WhatsApp-like messaging platform, in
 6. Text / files can be sent separately
 7. User sees the message in the cat history
 8. Receiving user gets a notification about new messages
-9. Receiving user sees chats with the newest messages on the top
+9. Receiving user sees on the top chats with the newest messages 
 10. Receiving user opens chat with the first user
 11. Receiving user sees text and option to download shared files
 
 ### Use-case 4. Group creation
+1. Any logged-in user can create a group chat
+2. User presses a button "create group"
+3. On group creation user chooses group name, optionally picture, group members from other users who are saved as contacts of this user or by phone numbers
+4. User who created a group becomes admin of the group
+5. Admin can add/remove members, can make other members to be admins
+6. When users are added to a group they receive a notification and group appears in their list of chats
+
 ### Use-case 5. Group messaging
+1. Logged-in user chooses group chat from their list of existing chats
+2. Group chat history opens if exists
+3. User has an input section on the bottom of the chat window. Input consists of text input, file attachment option and button `send`
+4. User prints some text and/or attach files and sends the message
+5. After files are uploaded if any text is sent together with these files
+6. User and other group members can see this message in the group cat history and can download files if any
+7. Group members get a notification about new messages
 
 ## System Overview
+This diagram illustrates a messagin system composed of client applications on different platforms, scalable backend service, and supporting infrastructure for media storage and ensuring correct messages delivery.
+All clients communicate with the backend through a Load Balancer, ensuring high availability, and horizontal scalability. 
+Load Balancer dispatches requests to the backend service layer.
+Chat Service upload media to media storage, sends user message to the message queue, writes changes to the database, and sends acknowledgment to client that message is being processed. 
+Message queue ensures that message will be delivered to users who are not online as soon as they become online.
+
+[High Level Architecture](high_level.plantuml)
+![high_level.svg](high_level.svg)
 
 ### High-level components
 

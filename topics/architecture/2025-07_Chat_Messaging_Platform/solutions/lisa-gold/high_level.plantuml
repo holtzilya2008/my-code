@@ -1,0 +1,51 @@
+@startuml
+title High-Level Architecture
+
+' User Devices
+  usecase "Mobile App (iOS)" as ios
+  usecase "Mobile App (Android)" as android
+  usecase "Web Client" as web
+
+
+node "Load Balancer" as lb
+
+package "Services" as services {
+    package "Service1" as sevice1 {
+        component "Chat Service" as chatService
+        component "Auth Service" as auth
+    }
+    package "Service2" as service2 {
+        component "Chat Service" as chatService2
+        component "Auth Service" as auth2
+    }
+}
+
+queue "Message Queue" as mq
+
+database "Object Storage\n(Media Blobs)" as objstore
+
+
+database "Database\nusers\nchats\nmessages\ngroups\n" as db
+
+' Connectivity: Clients → LB → Services
+ios  --down--> lb
+android --down--> lb : 1. message sent
+web --down--> lb
+
+lb --down--> services : 2. message sent
+services --> sevice1
+services --> service2 : 3. message sent
+
+chatService2 ..up..> android : 7. message sent\nacknowledged
+chatService2 --> mq : 6. message
+mq --> web : 8. message\ndelivery
+web ..> mq : 9. message\ndelivery\nacknowledged
+
+chatService2 --> db : 5.
+db ..> chatService2
+
+' Media path
+chatService2 --> objstore : 4. upload media
+objstore ..> chatService2 : download media
+
+@enduml
