@@ -1,0 +1,37 @@
+@startuml
+title Direct Messaging Flow
+
+actor "Logged-in User" as User
+participant "Chat Service" as ChatService
+database "Database" as DB
+database "Object Storage" as DB_Media
+queue "Message Queue" as MQ
+actor "Another User" as User2
+
+== Chat Load ==
+User -> ChatService: Chat id
+ChatService -> DB: Chat ID
+DB --> ChatService: Chat history (messages)
+ChatService --> User: Messages history
+
+== Sending Message ==
+User -> ChatService: Message Text\nFile bytes
+ChatService -> DB: Encrypted Message Text
+ChatService -> DB_Media: File bytes
+ChatService -> MQ: Message
+
+== Receiving Message ==
+alt Another User Online
+    MQ -> User2: Notification & Message
+    User2 --> MQ: Message acknowledged
+else Another User Offline
+    MQ -> MQ : Message is waiting for\nuser to become online
+end
+
+== Downloading Media ==
+User2 -> ChatService : Media ID
+ChatService -> DB_Media : Media ID
+DB_Media --> ChatService : File Bytes
+ChatService --> User2 : File Bytes
+
+@enduml

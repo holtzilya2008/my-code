@@ -99,26 +99,46 @@ Load Balancer dispatches requests to the backend service layer.
 Chat Service upload media to media storage, sends user message to the message queue, writes changes to the database, and sends acknowledgment to client that message is being processed. 
 Message queue ensures that message will be delivered to users who are not online as soon as they become online.
 
-[High Level Architecture](high_level.plantuml)
-![high_level.svg](high_level.svg)
-
 ### High-level components
+[High Level Architecture](diagrams/high_level.plantuml)
+![high_level.svg](diagrams/svg/high_level.svg)
+
 
 ### Data flow diagrams
 
 #### Use-case 1 (User registration)
+![user_reg.svg](diagrams/svg/user_reg.svg)
+
 #### Use-case 2 (User log in)
+![user_log_in.svg](diagrams/svg/user_log_in.svg)
+
 #### Use-case 3 (Direct messaging)
+![direct_msg.svg](diagrams/svg/direct_msg.svg)
+
 #### Use-case 4 (Group creation)
+![group_creation.svg](diagrams/svg/group_creation.svg)
+
 #### Use-case 5 (Group messaging)
+![group_msg.svg](diagrams/svg/group_msg.svg)
 
 ### Technology stack
+- WebSockets for client <-> Chat Service communication, it provides **real-time** messaging and notifications
+- RabbitMQ for **delivery guarantee**, offline messages, messages ordering
+- SQL database for users, groups, chats, user_chat, user_group tables
+- NoSQL database for encrypted messages
 
 ## Detailed component design
-###
-
+### Authentication Service
+### User Service
+### Group Service
+### Chat Service
+### Media Service
+### Message Queue
 
 ## Data design
+### SQL Database
+### Messages Database
+### Media Storage
 
 ## Scalability & Performance
 

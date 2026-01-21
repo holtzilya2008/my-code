@@ -1,0 +1,28 @@
+@startuml
+title Use Registration Flow
+
+actor User as User
+participant "Chat Service" as ChatService
+database "Database" as DB
+
+User -> ChatService: Phone number
+
+alt Invalid Phone Number
+    ChatService --> User: Error
+else Correct Phone number
+    ChatService --> User: Code in SMS
+end
+
+User -> ChatService: Code from SMS
+
+alt Wrong Code
+    ChatService --> User: Error
+else Correct Code
+    ChatService --> User: Success
+end
+
+User -> ChatService: username & password
+ChatService -> DB: phone number\nusername\nencrypted password
+ChatService -> User: User is registered
+
+@enduml

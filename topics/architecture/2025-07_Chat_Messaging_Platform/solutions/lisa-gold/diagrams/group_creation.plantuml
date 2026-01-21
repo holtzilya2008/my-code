@@ -1,0 +1,19 @@
+@startuml
+title Group Creation Flow
+
+actor "Logged-in User" as User
+participant "Chat Service" as ChatService
+database "Database" as DB
+queue "Message Queue" as MQ
+actor "Other Users" as Users
+
+User -> ChatService: Group Name\nGroup Members
+ChatService -> DB: Create Group\nAdd Group - Users assosiation
+DB --> ChatService: Group ID
+ChatService --> User: Group Creation\nSuccessful
+
+ChatService -> MQ: Group Creation Notification
+MQ -> Users: Group Creation Notification
+Users --> MQ: Acknowledged
+
+@enduml

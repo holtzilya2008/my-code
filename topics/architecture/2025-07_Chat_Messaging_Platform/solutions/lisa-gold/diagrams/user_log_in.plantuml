@@ -1,0 +1,18 @@
+@startuml
+title User Log In Flow
+
+actor User as User
+participant "Chat Service" as ChatService
+database "Database" as DB
+
+User -> ChatService: Phone number & password
+DB --> ChatService: Phone number & encrypted password
+
+alt Invalid Phone Number & Password combination
+    ChatService --> User: Auth Error
+else Correct Phone number & Password combination
+    DB --> ChatService: user's chats
+    ChatService --> User: chats
+end
+
+@enduml
