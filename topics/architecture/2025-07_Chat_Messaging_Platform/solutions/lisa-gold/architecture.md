@@ -123,17 +123,89 @@ Message queue ensures that message will be delivered to users who are not online
 
 ### Technology stack
 - WebSockets for client <-> Chat Service communication, it provides **real-time** messaging and notifications
-- RabbitMQ for **delivery guarantee**, offline messages, messages ordering
+- RabbitMQ (it implements the AMQP) for **delivery guarantee**, offline messages, messages ordering
 - SQL database for users, groups, chats, user_chat, user_group tables
 - NoSQL database for encrypted messages
 
 ## Detailed component design
+
 ### Authentication Service
+#### Responsibilities                                                                                                                
+- Verify user identity during registration and login                                                                                 
+- Manage phone number verification via SMS
+  - Generates random 6-digit verification codes
+  - Integrates with SMS gateway
+  - Validates user-submitted codes against temporary (10 min) stored values
+  - Prevents abuse by limiting number of attempts
+- Issue and validate authentication tokens                                                                                     
+- Handle session management and token refresh                                                                                        
+- Provide secure password hashing and validation                                                                                     
+- Enforce rate limiting to prevent brute force attacks                                                                               
+- Revoke tokens on logout or security events  
+
+#### Integration with Other Services
+- **User Service**: Creates user profile after successful registration                                                               
+- **Chat Service**: Validates tokens on WebSocket connection establishment
+
 ### User Service
+#### Responsibilities
+- Manage user profile: username, picture, status, user settings
+
+#### Integration with Other Services
+- **Media Service**: Creates/updates profile picture
+- **Notification Service**: Provide notification settings
+
 ### Group Service
+#### Responsibilities
+- Manage group members and admins
+- Handle group settings: name, picture
+
+#### Integration with Other Services
+- **User Service**: Takes users information (username, etc.)
+- **Media Service**: Creates/updates group picture
+
 ### Chat Service
+#### Responsibilities
+- Create chats
+- Receive encrypted messages and sends them to Message queue with recipient's user ID as routing key and create message records in the message database
+- Receive media and sends it to Media Service when user attaches one to a chat, create metadata record in the database
+- Download media trough Media Service and sends it user when user downloads it from a belonged chat
+- Define what users belong to a chat
+
 ### Media Service
+#### Responsibilities
+- Manage media storage, upload and download
+- Handles media retentions 
+
 ### Message Queue
+#### Responsibilities
+- Guarantee message delivery even if user-recipient is currently offline
+- Preserve correct message order in chats
+
+#### Technology: RabbitMQ with AMQP
+- AMQP (Advanced Message Queuing Protocol) is an open standard application layer protocol for message-oriented middleware. It provides: 
+  - **Reliable message delivery**: Messages are acknowledged upon successful processing to ensure messages aren't lost if processing fails and are sent once                         
+  - **Standardized protocol**: Interoperability between different platforms and languages
+  - **Message ordering**: FIFO (First-In-First-Out) ordering within a single queue
+- Message is routed to recipient-specific queue
+  - If recipient is online, Message Consumer Service immediately delivers message through WebSocket                                        
+  - If recipient is offline, message remains in queue until they reconnect                                                                 
+  - Upon successful delivery, consumer sends acknowledgment to RabbitMQ, removing message from queue
+- For group messages each member's queue receives a copy of the message
+- Messages in queue survive broker restarts
+- If user is offline for extended period, messages expire and are not sent
+
+### Notification Service
+- Take notification settings from user profile data
+- Receive request from Message Queue to send a notification on user device
+- Create and send notification
+- Depending on notification setting send notification again if previous notification was ignored
+
+### Load Balancer
+- Ensure that millions of user requests are handled smoothly by distributing traffic efficiently across many server instances
+- Detect unhealthy servers and stop routing to them
+- Conduct health checks
+- Ensure horizontal scalability 
 
 ## Data design
 ### SQL Database
