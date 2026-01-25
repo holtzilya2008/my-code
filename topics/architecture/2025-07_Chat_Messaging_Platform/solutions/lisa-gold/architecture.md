@@ -57,7 +57,7 @@ This document defines the architecture of a WhatsApp-like messaging platform, in
 6. If this code is not correct, user can retry to enter the code or user can choose to send a new code or enter another phone number
 
 ### Use-case 2. User log in
-1. User enter phone number and password
+1. User enters phone number and password
 2. Combination of phone number and password is checked
 3. If phone number or/and password are incorrect, user sees a warning about that and asked to try again
 4. If combination of phone number and password is correct, user is redirected to a home screen with his/her chats
@@ -66,19 +66,19 @@ This document defines the architecture of a WhatsApp-like messaging platform, in
 1. Logged-in user chooses another platform user to chat with
 2. Their chat history opens if exists
 3. User has an input section on the bottom of the chat window. Input consists of text input, file attachment option and button `send`
-4. User prints some text, attach files and sends the message
+4. User prints some text, attaches files and sends the message
 5. After files are uploaded text is sent together with these files
 6. Text / files can be sent separately
 7. User sees the message in the cat history
 8. Receiving user gets a notification about new messages
-9. Receiving user sees on the top chats with the newest messages 
+9. Receiving user sees chats with the newest messages on the top 
 10. Receiving user opens chat with the first user
 11. Receiving user sees text and option to download shared files
 
 ### Use-case 4. Group creation
 1. Any logged-in user can create a group chat
 2. User presses a button "create group"
-3. On group creation user chooses group name, optionally picture, group members from other users who are saved as contacts of this user or by phone numbers
+3. On group creation user chooses group name, optionally picture, group members from other users who are saved as contacts user device or by phone numbers
 4. User who created a group becomes admin of the group
 5. Admin can add/remove members, can make other members to be admins
 6. When users are added to a group they receive a notification and group appears in their list of chats
@@ -87,8 +87,8 @@ This document defines the architecture of a WhatsApp-like messaging platform, in
 1. Logged-in user chooses group chat from their list of existing chats
 2. Group chat history opens if exists
 3. User has an input section on the bottom of the chat window. Input consists of text input, file attachment option and button `send`
-4. User prints some text and/or attach files and sends the message
-5. After files are uploaded if any text is sent together with these files
+4. User prints some text and/or attaches files and sends the message
+5. After files are uploaded (if any files were attached) text is sent together with these files
 6. User and other group members can see this message in the group cat history and can download files if any
 7. Group members get a notification about new messages
 
@@ -96,11 +96,10 @@ This document defines the architecture of a WhatsApp-like messaging platform, in
 This diagram illustrates a messagin system composed of client applications on different platforms, scalable backend service, and supporting infrastructure for media storage and ensuring correct messages delivery.
 All clients communicate with the backend through a Load Balancer, ensuring high availability, and horizontal scalability. 
 Load Balancer dispatches requests to the backend service layer.
-Chat Service upload media to media storage, sends user message to the message queue, writes changes to the database, and sends acknowledgment to client that message is being processed. 
+Chat Service uploads media to media storage, sends user message to the message queue, writes changes to the database, and sends acknowledgment to client that message is being processed. 
 Message queue ensures that message will be delivered to users who are not online as soon as they become online.
 
 ### High-level components
-[High Level Architecture](diagrams/high_level.plantuml)
 ![high_level.svg](diagrams/svg/high_level.svg)
 
 
@@ -124,7 +123,7 @@ Message queue ensures that message will be delivered to users who are not online
 ### Technology stack
 - WebSockets for client <-> Chat Service communication, it provides **real-time** messaging and notifications
 - RabbitMQ (it implements the AMQP) for **delivery guarantee**, offline messages, messages ordering
-- SQL database for users, groups, chats, user_chat, user_group tables
+- SQL database for users, groups, chats, user_chat, group_chat tables
 - NoSQL database for encrypted messages
 
 ## Detailed component design
@@ -144,15 +143,15 @@ Message queue ensures that message will be delivered to users who are not online
 - Revoke tokens on logout or security events  
 
 #### Integration with Other Services
-- **User Service**: Creates user profile after successful registration                                                               
-- **Chat Service**: Validates tokens on WebSocket connection establishment
+- **User Service**: Create user profile after successful registration                                                               
+- **Chat Service**: Validate tokens on WebSocket connection establishment
 
 ### User Service
 #### Responsibilities
 - Manage user profile: username, picture, status, user settings
 
 #### Integration with Other Services
-- **Media Service**: Creates/updates profile picture
+- **Media Service**: Create/update profile picture
 - **Notification Service**: Provide notification settings
 
 ### Group Service
@@ -161,21 +160,21 @@ Message queue ensures that message will be delivered to users who are not online
 - Handle group settings: name, picture
 
 #### Integration with Other Services
-- **User Service**: Takes users information (username, etc.)
-- **Media Service**: Creates/updates group picture
+- **User Service**: Take users information (username, etc.)
+- **Media Service**: Create/update group picture
 
 ### Chat Service
 #### Responsibilities
 - Create chats
-- Receive encrypted messages and sends them to Message queue with recipient's user ID as routing key and create message records in the message database
-- Receive media and sends it to Media Service when user attaches one to a chat, create metadata record in the database
-- Download media trough Media Service and sends it user when user downloads it from a belonged chat
+- Receive encrypted messages and send them to Message queue with recipient's user ID as routing key and create message records in the message database
+- Receive media and send it to Media Service when user attaches one to a chat, create metadata record in the database
+- Download media trough Media Service and send it user when user downloads it from a belonged chat
 - Define what users belong to a chat
 
 ### Media Service
 #### Responsibilities
 - Manage media storage, upload and download
-- Handles media retentions 
+- Handle media retentions 
 
 ### Message Queue
 #### Responsibilities
@@ -209,12 +208,87 @@ Message queue ensures that message will be delivered to users who are not online
 
 ## Data design
 ### SQL Database
+![db.svg](diagrams/svg/db.svg)
+
 ### Messages Database
+![messages_db.svg](diagrams/svg/messages_db.svg)
+
 ### Media Storage
+![media_db.svg](diagrams/svg/media_db.svg)
 
 ## Scalability & Performance
 
+### Horizontal Scaling Strategy
+- Load balancer ensures clients remain connected to the same Chat Service instance during their session
+- If a server fails, clients automatically reconnect and are routed to another healthy instance
+
+### Database Scaling
+- **SQL Database Sharding**:
+  - Shard users table by user_id using consistent hashing
+  - Co-locate related data: user's chats, groups, and settings on the same shard to minimize cross-shard queries
+- **Indexes**: frequently queried fields (user_id, chat_id) are indexed
+
+### Message Database Scaling (NoSQL)
+- **Partition by Chat ID**: Messages are partitioned by chat_id to ensure chat history queries are efficient, partitions are stored on different servers
+- **Time-based Partitioning**: Archive old messages to cold storage
+- **Messages replication**: Messages are replicated across partitions to provide high availability
+
+### Media Storage
+  - Images and videos are compressed on upload
+
 ## Security & Privacy
+
+### End-to-End Encryption
+- **Signal Protocol Implementation**:
+  - Each user generates a public/private key pair on device
+  - Messages are encrypted on sender's device before transmission
+  - Only recipient's device can decrypt messages using their private key
+  - Keys never leave user devices
+
+### Authentication & Authorization
+- **Token Validation**: tokens, their expiration and revocation are validated on every request
+- **Password Requirements**:
+  - Minimum 8 characters
+  - Must include uppercase, lowercase, number
+- **Password Reset**: Use time-limited tokens sent via SMS
+- **Resources Security**: Ensure users can only query their own data, or they have permission to access requested resources
 
 ## Operational Considerations
 
+### Monitoring & Observability
+
+#### Metrics Collection
+  - Request rate, latency, error rate per service
+  - WebSocket connection count and duration
+  - Message queue depth and processing rate
+  - Database query performance
+  - Daily/monthly active users
+  - Message delivery success rate
+  - Average message latency
+  - Media upload/download success rate
+  - User registration and login trends
+
+#### Centralized Logging & Alerts
+  - Structured logging
+  - On ERROR log level: Alert is sent requiring immediate attention
+
+#### Health Checks
+- Check that service is up every 5 sec
+- Deep Health Checks every 2 min:
+  - Database connectivity
+  - External service dependencies (SMS gateway)
+
+### Disaster Recovery
+- Daily full database backup
+- Regular disaster recovery exercises to validate procedures
+
+### Deployment Strategy
+
+#### CI/CD Pipeline
+- **Continuous Integration**:
+  - Automated tests on every commit to main branch
+  - Unit tests, integration tests, end-to-end tests
+  - Code quality checks (linting)
+- **Continuous Deployment**:
+  - Manual approval for production deployment
+  - Deployment to production during low-traffic periods

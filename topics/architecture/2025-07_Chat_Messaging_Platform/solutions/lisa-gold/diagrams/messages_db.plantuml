@@ -1,0 +1,12 @@
+@startuml
+
+entity messages {
+    *id
+    encrypted_content
+    - chat_id
+    - sender_id
+    sent_at
+    - media_ids
+}
+
+@enduml

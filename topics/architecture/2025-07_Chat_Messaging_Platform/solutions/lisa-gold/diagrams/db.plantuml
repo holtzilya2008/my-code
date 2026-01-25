@@ -1,0 +1,51 @@
+@startuml
+
+entity users {
+    *id : bigint
+    phone_number : varchar
+    username : varchar
+    - picture_id : varchar
+    joined_at : timestamp
+}
+
+entity chats {
+    *id : bigint
+}
+
+entity user_chat {
+    *id : bigint
+    # user_id : bigint
+    # chat_id : bigint
+}
+
+entity user_settings {
+    *id : bigint
+    # user_id : bigint
+    notification state : enum
+}
+
+entity groups {
+    *id : bigint
+    # chat_id : varchar
+    name : varchar
+    - picture_id : varchar
+    # admin : bigint
+}
+
+entity media_meta {
+    - id : varchar
+    # owner_id : bigint
+    # chat_id: bigint
+    created_at: timestamp
+}
+
+' Relationships
+users o--o user_settings
+users --{ user_chat
+chats --{ user_chat
+chats o--o groups
+users --{ groups
+users --{ media_meta
+chats --{ media_meta
+
+@enduml

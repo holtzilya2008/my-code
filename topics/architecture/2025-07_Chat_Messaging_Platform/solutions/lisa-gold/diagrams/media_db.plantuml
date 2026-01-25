@@ -1,0 +1,9 @@
+@startuml
+
+entity media {
+    *id
+    name
+    content
+}
+
+@enduml
