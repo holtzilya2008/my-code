@@ -12,16 +12,18 @@ This document defines the architecture of a WhatsApp-like messaging platform, in
 - users can send messages to other users
 - messages can include media files
 - users see if a message was delivered successfully
+- users see their messaging history
 ### Groups
 - users can creat/join/quit groups
-- users can invite other users to groups
+- admin users can invite other users to groups
 - users can write messages to groups
 - messages are visible to all group members
 - groups consist of admins and regular members
+- every current group member can see group messaging history
 ### Group management
 - admins can remove/add users to a group
 - admins can change group picture/name
-- admins can block regular users messages to a group
+- admins can block regular users permissions to message to a group
 - admins can liquidate groups they are managing
 ### Notifications 
 - users receive real-time push notifications for new messages, group invites
@@ -69,7 +71,7 @@ This document defines the architecture of a WhatsApp-like messaging platform, in
 4. User prints some text, attaches files and sends the message
 5. After files are uploaded text is sent together with these files
 6. Text / files can be sent separately
-7. User sees the message in the cat history
+7. User sees the message in the chat history
 8. Receiving user gets a notification about new messages
 9. Receiving user sees chats with the newest messages on the top 
 10. Receiving user opens chat with the first user
@@ -78,8 +80,8 @@ This document defines the architecture of a WhatsApp-like messaging platform, in
 ### Use-case 4. Group creation
 1. Any logged-in user can create a group chat
 2. User presses a button "create group"
-3. On group creation user chooses group name, optionally picture, group members from other users who are saved as contacts user device or by phone numbers
-4. User who created a group becomes admin of the group
+3. On group creation user chooses group name, optionally picture, group members from other users who are saved as contacts on user device or by phone numbers
+4. User who creates a group becomes admin of the group
 5. Admin can add/remove members, can make other members to be admins
 6. When users are added to a group they receive a notification and group appears in their list of chats
 
@@ -89,11 +91,11 @@ This document defines the architecture of a WhatsApp-like messaging platform, in
 3. User has an input section on the bottom of the chat window. Input consists of text input, file attachment option and button `send`
 4. User prints some text and/or attaches files and sends the message
 5. After files are uploaded (if any files were attached) text is sent together with these files
-6. User and other group members can see this message in the group cat history and can download files if any
+6. User and other group members can see this message in the group chat history and can download files if any
 7. Group members get a notification about new messages
 
 ## System Overview
-This diagram illustrates a messagin system composed of client applications on different platforms, scalable backend service, and supporting infrastructure for media storage and ensuring correct messages delivery.
+This diagram illustrates a messaging system composed of client applications on different platforms, scalable backend service, and supporting infrastructure for media storage and ensuring correct messages delivery.
 All clients communicate with the backend through a Load Balancer, ensuring high availability, and horizontal scalability. 
 Load Balancer dispatches requests to the backend service layer.
 Chat Service uploads media to media storage, sends user message to the message queue, writes changes to the database, and sends acknowledgment to client that message is being processed. 
@@ -102,29 +104,86 @@ Message queue ensures that message will be delivered to users who are not online
 ### High-level components
 ![high_level.svg](diagrams/svg/high_level.svg)
 
-
 ### Data flow diagrams
+The following diagrams illustrate the interactions between components for key use-cases.
 
 #### Use-case 1 (User registration)
-![user_reg.svg](diagrams/svg/user_reg.svg)
+![diagrams/user_reg.plantuml](diagrams/svg/user_reg.svg)
+
+**Flow description:**
+1. Client submits phone number to Authentication Service
+2. Authentication Service generates a 6-digit verification code and stores it temporarily
+3. Authentication Service requests SMS Gateway to send the code to the user's phone
+4. User receives SMS and enters the verification code in the client
+5. Client sends the code to Authentication Service for validation
+6. If valid, user creates username and password
+7. Authentication Service hashes the password and sends user data to User Service
+8. User Service creates a new user record in the SQL database
+9. Authentication Service issues a JWT token
+10. Client receives the token and stores it for subsequent authenticated requests
 
 #### Use-case 2 (User log in)
-![user_log_in.svg](diagrams/svg/user_log_in.svg)
+![diagrams/user_log_in.plantuml](diagrams/svg/user_log_in.svg)
+
+**Flow description:**
+1. Client sends phone number and password to Authentication Service
+2. Authentication Service queries User Service to retrieve user credentials
+3. User Service fetches user data from SQL database
+4. Authentication Service validates the password hash
+5. If valid, Authentication Service issues a JWT token
+6. Client receives the token and establishes a WebSocket connection with Chat Service
+7. Chat Service validates the token with Authentication Service
+8. Upon successful validation, WebSocket connection is established for real-time messaging
 
 #### Use-case 3 (Direct messaging)
-![direct_msg.svg](diagrams/svg/direct_msg.svg)
+![diagrams/direct_msg.plantuml](diagrams/svg/direct_msg.svg)
+
+**Flow description:**
+1. Sender encrypts message on their device using recipient's public key
+2. If media is attached, client uploads it to Chat Service
+3. Chat Service forwards media to Media Service for storage
+4. Media Service stores the file in object storage and returns a media ID
+5. Chat Service creates a message record in NoSQL database with encrypted content and media metadata
+6. Chat Service publishes message to RabbitMQ with recipient's user ID as routing key
+7. Message Consumer Service retrieves message from recipient's queue
+8. If recipient is online, message is delivered immediately via WebSocket
+9. If recipient is offline, message remains in queue until they reconnect
+10. Client sends delivery acknowledgment back
 
 #### Use-case 4 (Group creation)
-![group_creation.svg](diagrams/svg/group_creation.svg)
+![diagrams/group_creation.plantuml](diagrams/svg/group_creation.svg)
+
+**Flow description:**
+1. Client sends group creation request (name, picture, member list) to Group Service
+2. If group picture is provided, Group Service uploads it to Media Service
+3. Media Service stores the picture and returns media ID
+4. Group Service creates group record in SQL database
+5. Group Service notifies Chat Service to create a group chat with user_chat records for all members (creator becomes admin)
+6. Chat Service creates a chat record in SQL database
+7. Chat Service creates user_chat associations
+8. Notification Service sends invitations to all group members
+9. Group members receive notifications and group appears in their chat list
 
 #### Use-case 5 (Group messaging)
-![group_msg.svg](diagrams/svg/group_msg.svg)
+![diagrams/group_msg.plantuml](diagrams/svg/group_msg.svg)
+
+**Flow description:**
+1. Sender encrypts message and sends it to Chat Service
+2. Chat Service queries SQL database to get list of all group members (chat users)
+3. If media is attached, Chat Service uploads it to Media Service
+4. Chat Service creates message record in NoSQL database
+5. Chat Service publishes message to RabbitMQ with separate routing for each group member
+6. Each member's queue receives a copy of the message
+7. Message Consumer Service delivers messages to online members via WebSocket
+8. Offline members' messages remain in their respective queues
+9. Notification Service sends push notifications to offline members
 
 ### Technology stack
 - WebSockets for client <-> Chat Service communication, it provides **real-time** messaging and notifications
 - RabbitMQ (it implements the AMQP) for **delivery guarantee**, offline messages, messages ordering
-- SQL database for users, groups, chats, user_chat, group_chat tables
-- NoSQL database for encrypted messages
+- SQL database (PostgreSQL/MySQL) for users, groups, chats, user_chat, group_chat tables
+- NoSQL database (MongoDB/Cassandra) for encrypted messages with high write throughput and horizontal scalability
+- Object Storage (AWS S3/Google Cloud Storage) for media files with lifecycle management
 
 ## Detailed component design
 
@@ -135,7 +194,7 @@ Message queue ensures that message will be delivered to users who are not online
   - Generates random 6-digit verification codes
   - Integrates with SMS gateway
   - Validates user-submitted codes against temporary (10 min) stored values
-  - Prevents abuse by limiting number of attempts
+  - Prevents abuse by limiting number of attempts by 5
 - Issue and validate authentication tokens                                                                                     
 - Handle session management and token refresh                                                                                        
 - Provide secure password hashing and validation                                                                                     
@@ -194,11 +253,29 @@ Message queue ensures that message will be delivered to users who are not online
 - Messages in queue survive broker restarts
 - If user is offline for extended period, messages expire and are not sent
 
+### Message Consumer Service
+#### Responsibilities
+- Poll messages from RabbitMQ queues for connected users
+- Deliver messages to recipients via established WebSocket connections
+- Send delivery acknowledgments back to RabbitMQ upon successful delivery
+- Handle message delivery failures and retry logic
+
+#### Integration with Other Services
+- **Message Queue**: Consumes messages from user-specific queues
+- **Notification Service**: Requests push notifications
+
 ### Notification Service
+#### Responsibilities
 - Take notification settings from user profile data
-- Receive request from Message Queue to send a notification on user device
-- Create and send notification
-- Depending on notification setting send notification again if previous notification was ignored
+- Receive requests from Message Consumer Service to send push notifications
+- Create and send notifications to user devices via platform-specific services (APNs for iOS, FCM for Android)
+- Handle notification delivery failures and retries
+- Respect user notification preferences (mute, do-not-disturb periods)
+- Batch notifications to reduce notification fatigue
+
+#### Integration with Other Services
+- **User Service**: Fetch notification preferences
+- **Message Consumer Service**: Receive notification requests for offline users
 
 ### Load Balancer
 - Ensure that millions of user requests are handled smoothly by distributing traffic efficiently across many server instances
@@ -234,7 +311,30 @@ Message queue ensures that message will be delivered to users who are not online
 - **Messages replication**: Messages are replicated across partitions to provide high availability
 
 ### Media Storage
-  - Images and videos are compressed on upload
+- Images and videos are compressed on upload
+
+### Client-Side Message Caching
+- **Local SQLite Database**: Each client maintains a local SQLite database to store message history
+  - Stores last 30 days of messages or up to 10,000 most recent messages per chat
+  - Includes message content, timestamps, delivery status, and media metadata
+  - Encrypted using device-specific keys for security
+- **Cache Synchronization**:
+  - On app launch, client syncs with server to fetch new messages and update delivery statuses
+  - Background sync occurs periodically when app is active
+  - Delta sync fetches only messages newer than last cached timestamp
+- **Offline Functionality**:
+  - Users can read cached messages without internet connection
+  - Outgoing messages are queued locally and sent when connection is restored
+  - Draft messages are saved locally
+- **Cache Invalidation**:
+  - Messages deleted by user are removed from local cache
+  - Cache is cleared when user logs out
+  - Old messages beyond retention period are automatically pruned
+- **Benefits**:
+  - Instant message history loading
+  - Reduced server load for frequently accessed messages
+  - Improved user experience with offline access
+  - Lower data usage for repeated message views
 
 ## Security & Privacy
 
@@ -252,6 +352,57 @@ Message queue ensures that message will be delivered to users who are not online
   - Must include uppercase, lowercase, number
 - **Password Reset**: Use time-limited tokens sent via SMS
 - **Resources Security**: Ensure users can only query their own data, or they have permission to access requested resources
+
+## Data Retention Policy
+
+### Message Retention
+- **Active Messages**: Messages are retained indefinitely while both users maintain active accounts
+- **Deleted Messages**:
+  - User-deleted messages are marked as deleted but retained in encrypted form for 30 days for recovery purposes
+  - After 30 days, deleted messages are permanently purged from all systems
+- **Inactive Accounts**:
+  - Messages from accounts inactive for 2+ years are moved to cold storage
+  - After 3 years of inactivity, account and all associated messages are permanently deleted
+  - Users receive notification 90 days before deletion
+- **Offline Message Queue**:
+  - Messages in RabbitMQ queues expire after 30 days if recipient remains offline
+  - Expired messages are moved to long-term storage but not delivered via push notification
+
+### Media Retention
+- **Active Media**: Media files are retained as long as associated messages exist
+- **Deleted Media**:
+  - Media files are soft-deleted when message is deleted
+  - Permanently deleted after 30 days along with message
+- **Orphaned Media**: Media files without associated messages are automatically purged after 90 days
+- **Storage Optimization**:
+  - Media older than 1 year is moved to cheaper cold storage tier
+  - Duplicate media files are deduplicated using content hashing
+
+### User Data Retention
+- **Profile Data**: Retained as long as account is active
+- **Account Deletion**:
+  - Upon user-initiated account deletion, all data is scheduled for permanent deletion
+  - 30-day grace period allows account recovery
+  - After grace period, all user data, messages, and media are permanently deleted
+  - Anonymized analytics data may be retained for business intelligence
+- **Legal Holds**: Data subject to legal holds is preserved per applicable laws and regulations
+
+### Audit Logs
+- **Security Logs**: Authentication attempts, failed logins, and security events retained for 1 year
+- **System Logs**: Application and error logs retained for 90 days
+- **Compliance Logs**: Logs required for regulatory compliance retained for 7 years
+
+### Backup Retention
+- **Daily Backups**: Retained for 30 days
+- **Weekly Backups**: Retained for 90 days
+- **Monthly Backups**: Retained for 1 year
+- **Annual Backups**: Retained for 7 years for compliance purposes
+
+### GDPR Compliance
+- **Right to Access**: Users can export all their data in machine-readable format
+- **Right to Deletion**: Users can request immediate deletion of all their data
+- **Right to Portability**: Export includes messages, media, and profile data
+- **Data Processing Transparency**: Users are informed about data retention periods in privacy policy
 
 ## Operational Considerations
 

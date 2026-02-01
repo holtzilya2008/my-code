@@ -2,27 +2,30 @@
 title Use Registration Flow
 
 actor User as User
-participant "Chat Service" as ChatService
+participant "Auth Service" as AuthService
+participant "SMS Gateway" as Smsgateway
 database "Database" as DB
 
-User -> ChatService: Phone number
+User -> AuthService: Phone number
+AuthService -> Smsgateway: Phone number +\nCode
 
 alt Invalid Phone Number
-    ChatService --> User: Error
+    Smsgateway --> AuthService: Error
+    AuthService --> User: Error
 else Correct Phone number
-    ChatService --> User: Code in SMS
+    Smsgateway --> User: Code in SMS
 end
 
-User -> ChatService: Code from SMS
+User -> AuthService: Code from SMS
 
 alt Wrong Code
-    ChatService --> User: Error
+    AuthService --> User: Error
 else Correct Code
-    ChatService --> User: Success
+    AuthService --> User: Success
 end
 
-User -> ChatService: username & password
-ChatService -> DB: phone number\nusername\nencrypted password
-ChatService -> User: User is registered
+User -> AuthService: username & password
+AuthService -> DB: phone number\nusername\nencrypted password
+AuthService -> User: User is registered
 
 @enduml

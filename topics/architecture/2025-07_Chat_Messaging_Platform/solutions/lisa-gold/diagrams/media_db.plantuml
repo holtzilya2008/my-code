@@ -1,7 +1,7 @@
 @startuml
 
 entity media {
-    *id
+    - id
     name
     content
 }

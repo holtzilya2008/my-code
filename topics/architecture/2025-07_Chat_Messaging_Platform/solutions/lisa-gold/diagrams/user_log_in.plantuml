@@ -2,17 +2,18 @@
 title User Log In Flow
 
 actor User as User
-participant "Chat Service" as ChatService
+participant "Auth Service" as AuthService
 database "Database" as DB
 
-User -> ChatService: Phone number & password
-DB --> ChatService: Phone number & encrypted password
+User -> AuthService: Phone number &\npassword
+DB --> AuthService: Phone number &\nencrypted password
 
 alt Invalid Phone Number & Password combination
-    ChatService --> User: Auth Error
+    AuthService --> User: Auth Error
 else Correct Phone number & Password combination
-    DB --> ChatService: user's chats
-    ChatService --> User: chats
+    AuthService -> DB: user_id
+    DB --> AuthService: user's chats
+    AuthService --> User: chats
 end
 
 @enduml
