@@ -134,6 +134,7 @@ The following diagrams illustrate the interactions between components for key us
 6. Client receives the token and establishes a WebSocket connection with Chat Service
 7. Chat Service validates the token with Authentication Service
 8. Upon successful validation, WebSocket connection is established for real-time messaging
+9. User's chats are fetched from the database
 
 #### Use-case 3 (Direct messaging)
 ![diagrams/direct_msg.plantuml](diagrams/svg/direct_msg.svg)
@@ -168,7 +169,7 @@ The following diagrams illustrate the interactions between components for key us
 ![diagrams/group_msg.plantuml](diagrams/svg/group_msg.svg)
 
 **Flow description:**
-1. Sender encrypts message and sends it to Chat Service
+1. Group member sends an encrypted message to Chat Service
 2. Chat Service queries SQL database to get list of all group members (chat users)
 3. If media is attached, Chat Service uploads it to Media Service
 4. Chat Service creates message record in NoSQL database
@@ -198,8 +199,8 @@ The following diagrams illustrate the interactions between components for key us
 - Issue and validate authentication tokens                                                                                     
 - Handle session management and token refresh                                                                                        
 - Provide secure password hashing and validation                                                                                     
-- Enforce rate limiting to prevent brute force attacks                                                                               
-- Revoke tokens on logout or security events  
+- Enforce rate limiting                                                                              
+- Revoke tokens on logout  
 
 #### Integration with Other Services
 - **User Service**: Create user profile after successful registration                                                               
@@ -215,7 +216,7 @@ The following diagrams illustrate the interactions between components for key us
 
 ### Group Service
 #### Responsibilities
-- Manage group members and admins
+- Manage group members via chats table and users roles in groups (admins/regular)
 - Handle group settings: name, picture
 
 #### Integration with Other Services
@@ -251,7 +252,7 @@ The following diagrams illustrate the interactions between components for key us
   - Upon successful delivery, consumer sends acknowledgment to RabbitMQ, removing message from queue
 - For group messages each member's queue receives a copy of the message
 - Messages in queue survive broker restarts
-- If user is offline for extended period, messages expire and are not sent
+- If user is offline for an extended period, messages expire and are not sent
 
 ### Message Consumer Service
 #### Responsibilities
@@ -268,14 +269,14 @@ The following diagrams illustrate the interactions between components for key us
 #### Responsibilities
 - Take notification settings from user profile data
 - Receive requests from Message Consumer Service to send push notifications
-- Create and send notifications to user devices via platform-specific services (APNs for iOS, FCM for Android)
+- Create and send notifications to user devices via platform-specific services
 - Handle notification delivery failures and retries
-- Respect user notification preferences (mute, do-not-disturb periods)
-- Batch notifications to reduce notification fatigue
+- Follow user notification preferences (mute, do-not-disturb periods)
+- Batch notifications if needed
 
 #### Integration with Other Services
 - **User Service**: Fetch notification preferences
-- **Message Consumer Service**: Receive notification requests for offline users
+- **Message Consumer Service**: Receive notification requests
 
 ### Load Balancer
 - Ensure that millions of user requests are handled smoothly by distributing traffic efficiently across many server instances
@@ -285,12 +286,32 @@ The following diagrams illustrate the interactions between components for key us
 
 ## Data design
 ### SQL Database
+Tables:
+- users
+- chats
+- TODO
+Relations:
+- user - user_settings one-to-one
+- TODO
 ![db.svg](diagrams/svg/db.svg)
 
 ### Messages Database
+Message components:
+- message id
+- encrypted content
+- chat_id (from chats table SQL database)
+- sender_id user id from users table SQL database
+- ids of attached media
+- meta information: when it was sent
+
 ![messages_db.svg](diagrams/svg/messages_db.svg)
 
 ### Media Storage
+Media components:
+- media id
+- file name
+- content
+
 ![media_db.svg](diagrams/svg/media_db.svg)
 
 ## Scalability & Performance
@@ -315,7 +336,7 @@ The following diagrams illustrate the interactions between components for key us
 
 ### Client-Side Message Caching
 - **Local SQLite Database**: Each client maintains a local SQLite database to store message history
-  - Stores last 30 days of messages or up to 10,000 most recent messages per chat
+  - Stores last 30 days of messages or up to 1 000 most recent messages per chat
   - Includes message content, timestamps, delivery status, and media metadata
   - Encrypted using device-specific keys for security
 - **Cache Synchronization**:
@@ -329,7 +350,7 @@ The following diagrams illustrate the interactions between components for key us
 - **Cache Invalidation**:
   - Messages deleted by user are removed from local cache
   - Cache is cleared when user logs out
-  - Old messages beyond retention period are automatically pruned
+  - Old messages beyond retention period are automatically deleted
 - **Benefits**:
   - Instant message history loading
   - Reduced server load for frequently accessed messages
@@ -349,8 +370,7 @@ The following diagrams illustrate the interactions between components for key us
 - **Token Validation**: tokens, their expiration and revocation are validated on every request
 - **Password Requirements**:
   - Minimum 8 characters
-  - Must include uppercase, lowercase, number
-- **Password Reset**: Use time-limited tokens sent via SMS
+  - Must include uppercase, lowercase, number, special symbol
 - **Resources Security**: Ensure users can only query their own data, or they have permission to access requested resources
 
 ## Data Retention Policy
@@ -366,43 +386,32 @@ The following diagrams illustrate the interactions between components for key us
   - Users receive notification 90 days before deletion
 - **Offline Message Queue**:
   - Messages in RabbitMQ queues expire after 30 days if recipient remains offline
-  - Expired messages are moved to long-term storage but not delivered via push notification
+  - Expired messages are deleted
 
 ### Media Retention
-- **Active Media**: Media files are retained as long as associated messages exist
+- **Media**: Media files are retained for 90 days after that they are deleted
 - **Deleted Media**:
-  - Media files are soft-deleted when message is deleted
+  - Media files are soft-deleted when associated message is deleted or file itself is deleted
   - Permanently deleted after 30 days along with message
 - **Orphaned Media**: Media files without associated messages are automatically purged after 90 days
-- **Storage Optimization**:
-  - Media older than 1 year is moved to cheaper cold storage tier
-  - Duplicate media files are deduplicated using content hashing
 
 ### User Data Retention
 - **Profile Data**: Retained as long as account is active
 - **Account Deletion**:
   - Upon user-initiated account deletion, all data is scheduled for permanent deletion
-  - 30-day grace period allows account recovery
-  - After grace period, all user data, messages, and media are permanently deleted
-  - Anonymized analytics data may be retained for business intelligence
-- **Legal Holds**: Data subject to legal holds is preserved per applicable laws and regulations
+  - 30 days period allows account recovery
+  - After 30 days period, all user data, messages, and media are permanently deleted
+  - Anonymized analytics data may be retained
 
 ### Audit Logs
 - **Security Logs**: Authentication attempts, failed logins, and security events retained for 1 year
 - **System Logs**: Application and error logs retained for 90 days
-- **Compliance Logs**: Logs required for regulatory compliance retained for 7 years
 
 ### Backup Retention
 - **Daily Backups**: Retained for 30 days
 - **Weekly Backups**: Retained for 90 days
 - **Monthly Backups**: Retained for 1 year
-- **Annual Backups**: Retained for 7 years for compliance purposes
-
-### GDPR Compliance
-- **Right to Access**: Users can export all their data in machine-readable format
-- **Right to Deletion**: Users can request immediate deletion of all their data
-- **Right to Portability**: Export includes messages, media, and profile data
-- **Data Processing Transparency**: Users are informed about data retention periods in privacy policy
+- **Annual Backups**: Retained for 3 years
 
 ## Operational Considerations
 
@@ -411,7 +420,7 @@ The following diagrams illustrate the interactions between components for key us
 #### Metrics Collection
   - Request rate, latency, error rate per service
   - WebSocket connection count and duration
-  - Message queue depth and processing rate
+  - Message queue depth
   - Database query performance
   - Daily/monthly active users
   - Message delivery success rate

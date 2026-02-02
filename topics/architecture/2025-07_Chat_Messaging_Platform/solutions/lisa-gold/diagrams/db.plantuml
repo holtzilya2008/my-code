@@ -21,12 +21,12 @@ entity user_chat {
 entity user_settings {
     *id : bigint
     # user_id : bigint
-    notification state : enum
+    notification_state : enum
 }
 
 entity groups {
     *id : bigint
-    # chat_id : varchar
+    # chat_id : bigint
     name : varchar
     - picture_id : varchar
     # admin : bigint

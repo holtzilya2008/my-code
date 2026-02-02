@@ -3,6 +3,7 @@ title User Log In Flow
 
 actor User as User
 participant "Auth Service" as AuthService
+participant "Chat Service" as ChatService
 database "Database" as DB
 
 User -> AuthService: Phone number &\npassword
@@ -11,9 +12,10 @@ DB --> AuthService: Phone number &\nencrypted password
 alt Invalid Phone Number & Password combination
     AuthService --> User: Auth Error
 else Correct Phone number & Password combination
-    AuthService -> DB: user_id
-    DB --> AuthService: user's chats
-    AuthService --> User: chats
+    AuthService -> ChatService: user_id
+    ChatService -> DB: user_id
+    DB --> ChatService: user's chats
+    ChatService --> User: chats
 end
 
 @enduml
