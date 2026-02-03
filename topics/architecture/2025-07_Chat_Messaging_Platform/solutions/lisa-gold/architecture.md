@@ -287,12 +287,20 @@ The following diagrams illustrate the interactions between components for key us
 ## Data design
 ### SQL Database
 Tables:
-- users
-- chats
-- TODO
+- **users**: Stores user account information including id, phone number, username, optional profile picture reference, and account creation timestamp
+- **chats**: Stores individual chat entities. Each chat can be either a direct conversation between two users or associated with a group
+- **user_chat**: Junction table that links users to their chats. Enables many-to-many relationship where one user can participate in multiple chats and one chat has multiple users. Role identifies if user is an admin or not of the related to the chat group
+- **user_settings**: Stores per-user configuration of notification preferences. Each user has exactly one settings record
+- **groups**: Stores group-specific information including group name, and optional group picture. Each group is associated with one chat entity
+- **media_meta**: Stores metadata about media files (images, videos, documents) shared in chats, including media identifier, owner, chat association, and upload timestamp
+
 Relations:
-- user - user_settings one-to-one
-- TODO
+- **users <-> user_settings**: One-to-one. Each user has exactly one settings record
+- **users -> user_chat**: One-to-many. A user can participate in multiple chats, also a user can be admin of multiple groups
+- **chats -> user_chat**: One-to-many. A chat can have multiple user participants
+- **chats <-> groups**: One-to-one. A group chat has exactly one associated group entity
+- **users -> media_meta**: One-to-many. A user can own multiple media files
+- **chats -> media_meta**: One-to-many. A chat can contain multiple media files
 ![db.svg](diagrams/svg/db.svg)
 
 ### Messages Database

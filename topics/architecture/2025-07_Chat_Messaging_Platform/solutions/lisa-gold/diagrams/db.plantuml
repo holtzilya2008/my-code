@@ -16,6 +16,7 @@ entity user_chat {
     *id : bigint
     # user_id : bigint
     # chat_id : bigint
+    user_role : enum
 }
 
 entity user_settings {
@@ -29,7 +30,6 @@ entity groups {
     # chat_id : bigint
     name : varchar
     - picture_id : varchar
-    # admin : bigint
 }
 
 entity media_meta {
