@@ -14,7 +14,7 @@ This document defines the architecture of a WhatsApp-like messaging platform, in
 - users see if a message was delivered successfully
 - users see their messaging history
 ### Groups
-- users can creat/join/quit groups
+- users can create/join/quit groups
 - admin users can invite other users to groups
 - users can write messages to groups
 - messages are visible to all group members
@@ -40,7 +40,7 @@ This document defines the architecture of a WhatsApp-like messaging platform, in
 - platform must achieve 99.9% uptime
 - messages must not be lost (redeliver) or delivered more than once
 
-## Constrains
+## Constraints
 - shared media file size
 - group members limit
 - one phone number is connected to only one platform account
@@ -182,7 +182,7 @@ The following diagrams illustrate the interactions between components for key us
 ### Technology stack
 - WebSockets for client <-> Chat Service communication, it provides **real-time** messaging and notifications
 - RabbitMQ (it implements the AMQP) for **delivery guarantee**, offline messages, messages ordering
-- SQL database (PostgreSQL/MySQL) for users, groups, chats, user_chat, group_chat tables
+- SQL database (PostgreSQL/MySQL) for users, groups, chats, user_chat, user_settings, media_meta tables
 - NoSQL database (MongoDB/Cassandra) for encrypted messages with high write throughput and horizontal scalability
 - Object Storage (AWS S3/Google Cloud Storage) for media files with lifecycle management
 
@@ -222,6 +222,7 @@ The following diagrams illustrate the interactions between components for key us
 #### Integration with Other Services
 - **User Service**: Take users information (username, etc.)
 - **Media Service**: Create/update group picture
+- **Chat Service**: Create group chats and user_chat associations for all members
 
 ### Chat Service
 #### Responsibilities
@@ -257,7 +258,7 @@ The following diagrams illustrate the interactions between components for key us
 ### Message Consumer Service
 #### Responsibilities
 - Poll messages from RabbitMQ queues for connected users
-- Deliver messages to recipients via established WebSocket connections
+- Deliver messages to recipients via established WebSocket connections, connection timeout after 2 minutes of inactivity
 - Send delivery acknowledgments back to RabbitMQ upon successful delivery
 - Handle message delivery failures and retry logic
 
@@ -373,6 +374,7 @@ Media components:
   - Messages are encrypted on sender's device before transmission
   - Only recipient's device can decrypt messages using their private key
   - Keys never leave user devices
+  - For group chats, sender encrypts message separately for each group member using their public keys
 
 ### Authentication & Authorization
 - **Token Validation**: tokens, their expiration and revocation are validated on every request
@@ -397,11 +399,10 @@ Media components:
   - Expired messages are deleted
 
 ### Media Retention
-- **Media**: Media files are retained for 90 days after that they are deleted
+- **Media**: Media files are retained as long as the associated message exists and at least one chat participant is active
 - **Deleted Media**:
   - Media files are soft-deleted when associated message is deleted or file itself is deleted
   - Permanently deleted after 30 days along with message
-- **Orphaned Media**: Media files without associated messages are automatically purged after 90 days
 
 ### User Data Retention
 - **Profile Data**: Retained as long as account is active
@@ -460,3 +461,35 @@ Media components:
 - **Continuous Deployment**:
   - Manual approval for production deployment
   - Deployment to production during low-traffic periods
+
+## Summary
+The following table demonstrates how each functional and non-functional requirement is addressed by the architecture:
+
+| Requirement Category | Specific Requirement | Architectural Solution                                                                                                                                     |
+|---------------------|---------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **User Management** | User registration via phone number | Authentication Service validates phone numbers via SMS gateway with 6-digit code verification                                                              |
+| | User authentication | Authentication Service issues JWT tokens after password validation; WebSocket connections validated on establishment                                       |
+| | Profile management | User Service manages username, profile picture, status, password                                                                                           |
+| | Profile deletion | User Service handles account deletion with 30-day recovery period before permanent removal                                                                 |
+| **Messaging** | Send messages to other users | Chat Service receives encrypted messages and routes them to RabbitMQ with recipient's user ID as routing key                                               |
+| | Media file support | Media Service stores files in object storage (S3/GCS); Chat Service creates metadata records in media_meta table                                           |
+| | Delivery confirmation | Message Consumer Service sends acknowledgment to RabbitMQ upon successful delivery to recipient                                                            |
+| | Message history | NoSQL database (MongoDB/Cassandra) stores encrypted messages; Client-side SQLite caches last 30 days/1000 messages                                         |
+| **Groups** | Create/join/quit groups | Group Service creates group records in SQL database; Chat Service manages user_chat associations with role tracking                                        |
+| | Admin invites | Group Service manages member list; Notification Service sends invitations to new members                                                                   |
+| | Group messaging | Chat Service queries SQL for group members; publishes message to RabbitMQ for each member's queue                                                          |
+| | Messages visible to all members | Chat Service with RabbitMQ ensure each member's queue receives a copy; NoSQL stores message with chat_id for history queries                               |
+| | Admins and regular members | user_chat table stores role field (admin/regular) for each user-group relationship                                                                         |
+| | Group history visibility | NoSQL stores messages with chat_id; all users in user_chat table can query chat history                                                                   |
+| **Group Management** | Add/remove users | Group Service modifies user_chat associations; validates admin permissions before operations                                                               |
+| | Change group picture/name | Group Service updates groups table; integrates with Media Service for picture uploads                                                                      |
+| | Block user messaging permissions | user_chat role field enforced by Chat Service before accepting messages                                                                                    |
+| | Liquidate groups | Group Service deletes group record and all user_chat associations                                                                                          |
+| **Notifications** | Real-time push notifications | WebSockets provide real-time delivery for online users                   |
+| **Scalability** | Support 2+ billion concurrent users | Horizontal scaling via Load Balancer; SQL sharding by user_id with consistent hashing; NoSQL partitioning by chat_id; Client-side caching reduces server load |
+| **Security** | End-to-end encryption | Signal Protocol implementation; messages encrypted on sender's device with recipient's public key; private keys never leave devices                        |
+| | Secure authentication | JWT tokens with validation on every request; password requirements; rate limiting                |
+| **Performance** | <1 sec message delivery | WebSockets for real-time communication; RabbitMQ FIFO ordering; indexed database queries                     |
+| **Availability** | 99.9% uptime | Load Balancer conducts health checks and routes away from unhealthy instances; automatic client reconnection; database backups; disaster recovery procedures |
+| | No message loss | RabbitMQ acknowledgment mechanism ensures messages aren't removed until successful delivery; messages persist in queue during broker restarts |
+| | No duplicate messages | RabbitMQ acknowledgment ensures messages sent only once                               |
